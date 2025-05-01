@@ -17,18 +17,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 include(FetchContent)
 
 # cmdfx
-set(DOCS_CMDFX OFF)
-set(TEST_CMDFX OFF)
-set(INSTALL_CMDFX OFF)
-set(KN_INSTALL_cmdfx OFF)
-set(PACKAGE_CMDFX OFF)
-
-FetchContent_Declare(
-    cmdfx
-    GIT_REPOSITORY https://github.com/gmitch215/cmdfx.git
-    GIT_TAG master
-)
-FetchContent_MakeAvailable(cmdfx)
 find_package(cmdfx REQUIRED)
 
 # CLI11

@@ -15,7 +15,7 @@ jobs:
         os: 
           - ubuntu-24.04
           - ubuntu-24.04-arm
-          - windows-2022
+          - windows-2025
           - macos-13
           - macos-15
 
@@ -25,28 +25,27 @@ jobs:
         with:
           submodules: 'recursive'
       - uses: actions/setup-dotnet@v4
-        if: ${{ matrix.os == 'windows-2022' }}
+        if: ${{ matrix.os == 'windows-2025' }}
         with:
           dotnet-version: '9'
-      - name: Install WiX
-        if: ${{ matrix.os == 'windows-2022' }}
+      - name: Install WiX & NSIS
+        if: ${{ matrix.os == 'windows-2025' }}
         run: |
           dotnet tool install --global wix --version 5.0.2
           wix extension add --global WixToolset.UI.wixext/5.0.2
+          choco install nsis
+        shell: bash
+      - name: Install Dependencies
+        run: bash deps.sh
         shell: bash
       - name: Configure Project
-        run: cmake -B build
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
         shell: bash
-      - name: Build Project (Posix)
-        if: ${{ matrix.os != 'windows-2022' }}
+      - name: Build Project
         run: |
           cmake --build build --config Release --target package
           rm -rf build/build/package/_CPack_Packages/
-      - name: Build Project (Windows)
-        if: ${{ matrix.os == 'windows-2022' }}
-        run: |
-          cmake --build build --config Release --target package
-          rm .\build\build\package\_CPack_Packages\ -R -Force
+        shell: bash
       - name: Archive Package Artifacts
         if: success() || failure()
         uses: actions/upload-artifact@v4
