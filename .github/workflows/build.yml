@@ -38,7 +38,7 @@ jobs:
         run: sudo bash deps.sh
         shell: bash
       - name: Install Dependencies (Windows)
-        if: ${{ matrix.os != 'windows-2025' }}
+        if: ${{ matrix.os == 'windows-2025' }}
         run: bash deps.sh
         shell: bash
       - name: Configure Project
