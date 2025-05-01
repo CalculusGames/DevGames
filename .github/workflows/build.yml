@@ -33,7 +33,12 @@ jobs:
           dotnet tool install --global wix --version 5.0.2
           wix extension add --global WixToolset.UI.wixext/5.0.2
           choco install nsis
-      - name: Install Dependencies
+      - name: Install Dependencies (Posix)
+        if: ${{ matrix.os != 'windows-2025' }}
+        run: sudo bash deps.sh
+        shell: bash
+      - name: Install Dependencies (Windows)
+        if: ${{ matrix.os != 'windows-2025' }}
         run: bash deps.sh
         shell: bash
       - name: Configure Project
