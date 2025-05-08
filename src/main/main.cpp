@@ -1,5 +1,4 @@
 #include <iostream>
-#include <format>
 #include <string>
 #include <unordered_map>
 #include <sstream>
@@ -75,7 +74,10 @@ int main(int argc, char** argv) {
     argv = app.ensure_utf8(argv);
     app.usage("game <game|command> [options]");
     app.allow_windows_style_options();
-    app.set_version_flag("--version", std::format("devgames v{}", DEVGAMES_VERSION), "Show DevGames version information");
+    
+    std::stringstream version_stream;
+    version_stream << "devgames v" << DEVGAMES_VERSION;
+    app.set_version_flag("--version", version_stream.str(), "Show DevGames version information");
 
     app.failure_message(CLI::FailureMessage::help);
     app.require_subcommand(1);

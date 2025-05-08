@@ -11,7 +11,7 @@ set(PROJECT_DOCUMENTATION "https://calculusgames.github.io/devgames/")
 
 set(CMAKE_C_STANDARD 17)
 set(CMAKE_C_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 include(FetchContent)
@@ -39,6 +39,10 @@ target_include_directories(devgames
 target_link_libraries(devgames PRIVATE CLI11::CLI11)
 set_target_properties(devgames PROPERTIES OUTPUT_NAME game)
 target_compile_definitions(devgames PRIVATE DEVGAMES_VERSION="${PROJECT_VERSION}")
+
+if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+    target_link_options(devgames PRIVATE -pthread)
+endif()
 
 # Installation
 option(INSTALL_DEVGAMES "Install ${PROJECT_NAME}" ON)
@@ -181,84 +185,95 @@ if (PACKAGE_DEVGAMES)
 endif()
 
 # Built-In Games
-set(BUILTIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/builtin")
-file(GLOB CHILD_DIRS RELATIVE ${BUILTIN_DIR} ${BUILTIN_DIR}/*)
+option(BUILD_GAMES "Build Built-In Games" ON)
 
-set(DEVGAMES_INSTALL_DIRECTORY "${CMAKE_INSTALL_LIBEXECDIR}/builtin")
-add_compile_definitions(DEVGAMES_ROOT_INSTALL_DIR="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR}")
-add_compile_definitions(DEVGAMES_THIRD_PARTY_INSTALL_DIR="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR}/install")
-add_compile_definitions(DEVGAMES_BUILTIN_INSTALL_DIR="${CMAKE_INSTALL_PREFIX}/${DEVGAMES_INSTALL_DIRECTORY}")
+if (BUILD_GAMES)
+    set(BUILTIN_DIR "${CMAKE_CURRENT_SOURCE_DIR}/src/builtin")
+    file(GLOB CHILD_DIRS RELATIVE ${BUILTIN_DIR} ${BUILTIN_DIR}/*)
 
-set(DEVGAMES_BUILTIN_LIST "")
-foreach(dir ${CHILD_DIRS})
-    if(IS_DIRECTORY "${BUILTIN_DIR}/${dir}")
-        set(DEVGAMES_BUILTIN_LIST "${DEVGAMES_BUILTIN_LIST},${dir}")
-        set(TARGET_NAME "devgames-${dir}")
-        set(SOURCE_DIR "${BUILTIN_DIR}/${dir}")
+    set(DEVGAMES_INSTALL_DIRECTORY "${CMAKE_INSTALL_LIBEXECDIR}/DevGames/builtin")
+    add_compile_definitions(DEVGAMES_ROOT_INSTALL_DIR="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR}/DevGames")
+    add_compile_definitions(DEVGAMES_THIRD_PARTY_INSTALL_DIR="${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_LIBEXECDIR}/DevGames/install")
+    add_compile_definitions(DEVGAMES_BUILTIN_INSTALL_DIR="${CMAKE_INSTALL_PREFIX}/${DEVGAMES_INSTALL_DIRECTORY}")
 
-        file(GLOB_RECURSE GAME_SOURCES "${SOURCE_DIR}/*.cpp")
+    set(DEVGAMES_BUILTIN_LIST "")
+    foreach(dir ${CHILD_DIRS})
+        if(IS_DIRECTORY "${BUILTIN_DIR}/${dir}")
+            set(DEVGAMES_BUILTIN_LIST "${DEVGAMES_BUILTIN_LIST},${dir}")
+            set(TARGET_NAME "devgames-${dir}")
+            set(SOURCE_DIR "${BUILTIN_DIR}/${dir}")
 
-        add_executable(${TARGET_NAME} ${GAME_SOURCES})
-        target_include_directories(${TARGET_NAME} PRIVATE ${SOURCE_DIR})
-        target_link_libraries(${TARGET_NAME} PRIVATE cmdfx::cmdfx CLI11::CLI11)
-        set_target_properties(${TARGET_NAME} PROPERTIES OUTPUT_NAME ${dir})
+            file(GLOB_RECURSE GAME_SOURCES "${SOURCE_DIR}/*.cpp")
 
-        add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
-            COMMENT "Generating checksums for '${TARGET_NAME}'"
-            COMMAND ${CMAKE_COMMAND} -E md5sum "$<TARGET_FILE:${TARGET_NAME}>" > "$<TARGET_FILE:${TARGET_NAME}>.md5"
-            COMMAND ${CMAKE_COMMAND} -E sha1sum "$<TARGET_FILE:${TARGET_NAME}>" > "$<TARGET_FILE:${TARGET_NAME}>.sha1"
-            COMMAND ${CMAKE_COMMAND} -E sha256sum "$<TARGET_FILE:${TARGET_NAME}>" > "$<TARGET_FILE:${TARGET_NAME}>.sha256"
-            COMMAND ${CMAKE_COMMAND} -E sha512sum "$<TARGET_FILE:${TARGET_NAME}>" > "$<TARGET_FILE:${TARGET_NAME}>.sha512"
-            VERBATIM
-        )
-
-        if (INSTALL_DEVGAMES)
-            install(TARGETS ${TARGET_NAME}
-                EXPORT devgamesTargets
-                COMPONENT ${dir}
-                RUNTIME DESTINATION ${DEVGAMES_INSTALL_DIRECTORY}/${dir}
-                ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${dir}
-                LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${dir}
+            add_executable(${TARGET_NAME} ${GAME_SOURCES})
+            target_include_directories(${TARGET_NAME} PRIVATE ${SOURCE_DIR})
+            target_link_libraries(${TARGET_NAME} PRIVATE cmdfx::cmdfx CLI11::CLI11)
+            set_target_properties(${TARGET_NAME} PROPERTIES 
+                OUTPUT_NAME ${dir} 
+                RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/games/${dir}" 
             )
 
-            install(FILES
-                "${SOURCE_DIR}/${dir}.properties"
-                "$<TARGET_FILE:${TARGET_NAME}>.md5"
-                "$<TARGET_FILE:${TARGET_NAME}>.sha1"
-                "$<TARGET_FILE:${TARGET_NAME}>.sha256"
-                "$<TARGET_FILE:${TARGET_NAME}>.sha512"
-                DESTINATION ${DEVGAMES_INSTALL_DIRECTORY}/${dir}
-                COMPONENT ${dir}
+            if (CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang")
+                target_link_options(${TARGET_NAME} PRIVATE -pthread)
+            endif()
+
+            add_custom_command(TARGET ${TARGET_NAME} POST_BUILD
+                COMMENT "Generating checksums for '${TARGET_NAME}'"
+                COMMAND ${CMAKE_COMMAND} -E md5sum "$<TARGET_FILE:${TARGET_NAME}>" > "$<TARGET_FILE:${TARGET_NAME}>.md5"
+                COMMAND ${CMAKE_COMMAND} -E sha1sum "$<TARGET_FILE:${TARGET_NAME}>" > "$<TARGET_FILE:${TARGET_NAME}>.sha1"
+                COMMAND ${CMAKE_COMMAND} -E sha256sum "$<TARGET_FILE:${TARGET_NAME}>" > "$<TARGET_FILE:${TARGET_NAME}>.sha256"
+                COMMAND ${CMAKE_COMMAND} -E sha512sum "$<TARGET_FILE:${TARGET_NAME}>" > "$<TARGET_FILE:${TARGET_NAME}>.sha512"
+                VERBATIM
             )
+
+            if (INSTALL_DEVGAMES)
+                install(TARGETS ${TARGET_NAME}
+                    EXPORT devgamesTargets
+                    COMPONENT ${dir}
+                    RUNTIME DESTINATION ${DEVGAMES_INSTALL_DIRECTORY}/${dir}
+                    ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}/${dir}
+                    LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}/${dir}
+                )
+
+                install(FILES
+                    "${SOURCE_DIR}/${dir}.properties"
+                    "$<TARGET_FILE:${TARGET_NAME}>.md5"
+                    "$<TARGET_FILE:${TARGET_NAME}>.sha1"
+                    "$<TARGET_FILE:${TARGET_NAME}>.sha256"
+                    "$<TARGET_FILE:${TARGET_NAME}>.sha512"
+                    DESTINATION ${DEVGAMES_INSTALL_DIRECTORY}/${dir}
+                    COMPONENT ${dir}
+                )
+            endif()
+
+            if (PACKAGE_DEVGAMES)
+                # capitalize every word
+                string(REPLACE "_" " " temp "${dir}")
+                string(REPLACE "-" " " temp "${temp}")
+                separate_arguments(words UNIX_COMMAND "${temp}")
+
+                set(COMPONENT_NAME "")
+                foreach(word IN LISTS words)
+                    if(NOT word STREQUAL "")
+                        string(SUBSTRING "${word}" 0 1 first_char)
+                        string(TOUPPER "${first_char}" first_char_upper)
+                        string(SUBSTRING "${word}" 1 -1 rest)
+                        set(cap_word "${first_char_upper}${rest}")
+                        string(APPEND COMPONENT_NAME "${cap_word}")
+                    endif()
+                endforeach()
+
+                file(READ "${SOURCE_DIR}/${dir}.properties" PROPERTIES_CONTENTS)
+                string(REPLACE "\r\n" "\n" PROPERTIES_CONTENTS "${PROPERTIES_CONTENTS}")
+                string(REPLACE "\r" "\n" PROPERTIES_CONTENTS "${PROPERTIES_CONTENTS}")
+                
+                string(REGEX MATCH "description[ \t]*=[ \t]*([^\n\r]*)" _match "${PROPERTIES_CONTENTS}")
+                set(COMPONENT_DESCRIPTION "${CMAKE_MATCH_1}")
+                
+                cpack_add_component(${dir} DISPLAY_NAME "${COMPONENT_NAME}" DESCRIPTION "Built-In Game: ${COMPONENT_NAME}\n\n${COMPONENT_DESCRIPTION}" GROUP games)
+            endif()
         endif()
+    endforeach()
 
-        if (PACKAGE_DEVGAMES)
-            # capitalize every word
-            string(REPLACE "_" " " temp "${dir}")
-            string(REPLACE "-" " " temp "${temp}")
-            separate_arguments(words UNIX_COMMAND "${temp}")
-
-            set(COMPONENT_NAME "")
-            foreach(word IN LISTS words)
-                if(NOT word STREQUAL "")
-                    string(SUBSTRING "${word}" 0 1 first_char)
-                    string(TOUPPER "${first_char}" first_char_upper)
-                    string(SUBSTRING "${word}" 1 -1 rest)
-                    set(cap_word "${first_char_upper}${rest}")
-                    string(APPEND COMPONENT_NAME "${cap_word}")
-                endif()
-            endforeach()
-
-            file(READ "${SOURCE_DIR}/${dir}.properties" PROPERTIES_CONTENTS)
-            string(REPLACE "\r\n" "\n" PROPERTIES_CONTENTS "${PROPERTIES_CONTENTS}")
-            string(REPLACE "\r" "\n" PROPERTIES_CONTENTS "${PROPERTIES_CONTENTS}")
-            
-            string(REGEX MATCH "description[ \t]*=[ \t]*([^\n\r]*)" _match "${PROPERTIES_CONTENTS}")
-            set(COMPONENT_DESCRIPTION "${CMAKE_MATCH_1}")
-            
-            cpack_add_component(${dir} DISPLAY_NAME "${COMPONENT_NAME}" DESCRIPTION "Built-In Game: ${COMPONENT_NAME}\n\n${COMPONENT_DESCRIPTION}" GROUP games)
-        endif()
-    endif()
-endforeach()
-
-target_compile_definitions(devgames PRIVATE DEVGAMES_BUILTIN_LIST="${DEVGAMES_BUILTIN_LIST}")
+    target_compile_definitions(devgames PRIVATE DEVGAMES_BUILTIN_LIST="${DEVGAMES_BUILTIN_LIST}")
+endif()
